@@ -5,3 +5,4 @@ __pycache__/
 *.xlsx
 *.xls
 scraper.py
+data/sap_certifications.csv

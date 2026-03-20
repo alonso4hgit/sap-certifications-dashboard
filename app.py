@@ -34,8 +34,11 @@ COMP_REQUIREMENTS = {
 }
 
 @st.cache_data
-def load_data():
-    df = pd.read_csv(CSV_FILE)
+def load_data(source):
+    if isinstance(source, Path):
+        df = pd.read_csv(source)
+    else:
+        df = pd.read_csv(source)
     df["dateIssued"] = pd.to_datetime(df["dateIssued"], errors="coerce")
     df["dateExpiration"] = pd.to_datetime(df["dateExpiration"], errors="coerce")
     df["subSolutionAreaName"] = df["subSolutionAreaName"].fillna("Other")
@@ -43,7 +46,27 @@ def load_data():
     df["partnerAccountName"] = df["partnerAccountName"].str.strip()
     return df
 
-df = load_data()
+# ── Carga de datos ────────────────────────────────────────────────────────────
+if CSV_FILE.exists():
+    df = load_data(CSV_FILE)
+else:
+    st.title("SAP Partner Certification Monitor")
+    st.warning("📂 No hay datos cargados. Sube el archivo `sap_certifications.csv` para continuar.")
+    uploaded = st.file_uploader("Subir sap_certifications.csv", type="csv")
+    if uploaded:
+        df = load_data(uploaded)
+        st.success("✅ Datos cargados correctamente. Recargando...")
+        st.rerun()
+    else:
+        st.info(
+            "**Cómo obtener el archivo:**\n"
+            "1. Entra a [me.sap.com](https://me.sap.com) con tu sesión activa\n"
+            "2. Abre la consola del browser (F12)\n"
+            "3. Pega y ejecuta el contenido de `ACTUALIZAR_DATOS.js`\n"
+            "4. Se descarga `sap_certifications.csv` automáticamente\n"
+            "5. Súbelo aquí 👆"
+        )
+        st.stop()
 
 # ── Sidebar filters ──────────────────────────────────────────────────────────
 with st.sidebar:

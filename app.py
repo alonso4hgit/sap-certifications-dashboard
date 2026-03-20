@@ -3,6 +3,8 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from pathlib import Path
+import requests
+import io
 
 st.set_page_config(
     page_title="SAP Partner Certification Monitor — Enable Group",
@@ -33,40 +35,35 @@ COMP_REQUIREMENTS = {
     "Business Transformation Management": {"essential": 3, "advanced": 5, "expert": 10},
 }
 
-@st.cache_data
-def load_data(source):
-    if isinstance(source, Path):
-        df = pd.read_csv(source)
-    else:
-        df = pd.read_csv(source)
-    df["dateIssued"] = pd.to_datetime(df["dateIssued"], errors="coerce")
+GITHUB_RAW_URL = "https://raw.githubusercontent.com/alonso4hgit/sap-certifications-dashboard/main/data/sap_certifications.csv"
+
+@st.cache_data(ttl=300)
+def load_data():
+    # Intenta leer desde GitHub (producción)
+    try:
+        token = st.secrets["GITHUB_TOKEN"]
+        headers = {"Authorization": f"token {token}"}
+        resp = requests.get(GITHUB_RAW_URL, headers=headers, timeout=10)
+        resp.raise_for_status()
+        df = pd.read_csv(io.StringIO(resp.text))
+    except Exception:
+        # Fallback: archivo local (desarrollo)
+        if CSV_FILE.exists():
+            df = pd.read_csv(CSV_FILE)
+        else:
+            return None
+    df["dateIssued"]     = pd.to_datetime(df["dateIssued"],     errors="coerce")
     df["dateExpiration"] = pd.to_datetime(df["dateExpiration"], errors="coerce")
     df["subSolutionAreaName"] = df["subSolutionAreaName"].fillna("Other")
-    df["competencyName"] = df["competencyName"].fillna("Other")
-    df["partnerAccountName"] = df["partnerAccountName"].str.strip()
+    df["competencyName"]      = df["competencyName"].fillna("Other")
+    df["partnerAccountName"]  = df["partnerAccountName"].str.strip()
     return df
 
 # ── Carga de datos ────────────────────────────────────────────────────────────
-if CSV_FILE.exists():
-    df = load_data(CSV_FILE)
-else:
-    st.title("SAP Partner Certification Monitor")
-    st.warning("📂 No hay datos cargados. Sube el archivo `sap_certifications.csv` para continuar.")
-    uploaded = st.file_uploader("Subir sap_certifications.csv", type="csv")
-    if uploaded:
-        df = load_data(uploaded)
-        st.success("✅ Datos cargados correctamente. Recargando...")
-        st.rerun()
-    else:
-        st.info(
-            "**Cómo obtener el archivo:**\n"
-            "1. Entra a [me.sap.com](https://me.sap.com) con tu sesión activa\n"
-            "2. Abre la consola del browser (F12)\n"
-            "3. Pega y ejecuta el contenido de `ACTUALIZAR_DATOS.js`\n"
-            "4. Se descarga `sap_certifications.csv` automáticamente\n"
-            "5. Súbelo aquí 👆"
-        )
-        st.stop()
+df = load_data()
+if df is None:
+    st.error("No se pudo cargar el archivo de datos. Verifica el token de GitHub en Secrets.")
+    st.stop()
 
 # ── Sidebar filters ──────────────────────────────────────────────────────────
 with st.sidebar:

@@ -5,4 +5,4 @@ __pycache__/
 *.xlsx
 *.xls
 scraper.py
-data/sap_certifications.csv
+# CSV incluido en repo para deploy via GitHub token

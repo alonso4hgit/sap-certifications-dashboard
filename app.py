@@ -3,8 +3,6 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from pathlib import Path
-import requests
-import io
 
 st.set_page_config(
     page_title="SAP Partner Certification Monitor — Enable Group",
@@ -35,25 +33,13 @@ COMP_REQUIREMENTS = {
     "Business Transformation Management": {"essential": 3, "advanced": 5, "expert": 10},
 }
 
-GITHUB_RAW_URL = "https://raw.githubusercontent.com/alonso4hgit/sap-certifications-dashboard/main/data/sap_certifications.csv"
-
-@st.cache_data(ttl=300)
+@st.cache_data
 def load_data():
-    # Intenta leer desde GitHub (producción)
-    try:
-        token = st.secrets["GITHUB_TOKEN"]
-        headers = {"Authorization": f"token {token}"}
-        resp = requests.get(GITHUB_RAW_URL, headers=headers, timeout=10)
-        resp.raise_for_status()
-        df = pd.read_csv(io.StringIO(resp.text))
-    except Exception:
-        # Fallback: archivo local (desarrollo)
-        if CSV_FILE.exists():
-            df = pd.read_csv(CSV_FILE)
-        else:
-            return None
-    df["dateIssued"]     = pd.to_datetime(df["dateIssued"],     errors="coerce")
-    df["dateExpiration"] = pd.to_datetime(df["dateExpiration"], errors="coerce")
+    if not CSV_FILE.exists():
+        return None
+    df = pd.read_csv(CSV_FILE)
+    df["dateIssued"]          = pd.to_datetime(df["dateIssued"],    errors="coerce")
+    df["dateExpiration"]      = pd.to_datetime(df["dateExpiration"], errors="coerce")
     df["subSolutionAreaName"] = df["subSolutionAreaName"].fillna("Other")
     df["competencyName"]      = df["competencyName"].fillna("Other")
     df["partnerAccountName"]  = df["partnerAccountName"].str.strip()
@@ -62,7 +48,7 @@ def load_data():
 # ── Carga de datos ────────────────────────────────────────────────────────────
 df = load_data()
 if df is None:
-    st.error("No se pudo cargar el archivo de datos. Verifica el token de GitHub en Secrets.")
+    st.error("No se encontró el archivo de datos.")
     st.stop()
 
 # ── Sidebar filters ──────────────────────────────────────────────────────────
